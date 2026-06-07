@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ao-audio-router"
+version = "0.1.0"
+description = "Per-application audio router for PipeWire/PulseAudio, with an interactive TUI and a fast CLI."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "anycodef" }]
+keywords = ["pipewire", "pulseaudio", "audio", "routing", "tui", "linux", "sink"]
+classifiers = [
+    "Environment :: Console",
+    "Environment :: Console :: Curses",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/anycodef/ao-audio-router"
+Issues = "https://github.com/anycodef/ao-audio-router/issues"
+
+[project.scripts]
+ao = "ao.cli:main"
+
+[tool.setuptools]
+packages = ["ao"]
