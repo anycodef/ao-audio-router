@@ -12,7 +12,9 @@ import curses
 from . import backend
 from .backend import BackendError, Sink, Stream
 
-HELP = "[↑↓/jk] mover  [Tab/←→] panel  [Enter] aplicar  [d] default  [m] mute  [r] refrescar  [q] salir"
+HELP_1 = "[↑↓/jk] sel  [Tab/←→] panel  [Enter] mover  [+/-] volumen  [m] mute"
+HELP_2 = "[d] default  [r] refrescar  [q] salir   ·   +/- y m actúan sobre el panel enfocado"
+VOL_STEP = 5
 
 
 class State:
@@ -76,9 +78,10 @@ def _draw(stdscr, st: State) -> None:
         dest = st.sink_by_index(sstream.sink)
         dest_label = dest.short() if dest else f"sink {sstream.sink}"
         marker = "▶ " if (st.focus == 0 and i == st.sel_stream) else "  "
-        line = f"{marker}{sstream.label():<16} → {dest_label}"
+        vol = "mute" if sstream.muted else sstream.volume_percent
+        line = f"{marker}{sstream.label():<14} {vol:>4} → {dest_label}"
         attr = curses.A_REVERSE if (st.focus == 0 and i == st.sel_stream) else 0
-        if sstream.corked:
+        if sstream.corked or sstream.muted:
             attr |= curses.A_DIM
         _safe_addstr(stdscr, y, 2, line[: mid - 3], attr)
 
@@ -95,11 +98,12 @@ def _draw(stdscr, st: State) -> None:
             attr |= curses.A_BOLD
         _safe_addstr(stdscr, y, mid + 2, line, attr)
 
-    # Mensaje de estado + ayuda
+    # Mensaje de estado + ayuda (dos líneas)
     if st.message:
-        _safe_addstr(stdscr, h - 3, 2, st.message[: w - 4], curses.A_BOLD)
-    _safe_addstr(stdscr, h - 2, 2, "─" * (w - 4), curses.A_DIM)
-    _safe_addstr(stdscr, h - 1, 2, HELP, curses.A_DIM)
+        _safe_addstr(stdscr, h - 4, 2, st.message[: w - 4], curses.A_BOLD)
+    _safe_addstr(stdscr, h - 3, 2, "─" * (w - 4), curses.A_DIM)
+    _safe_addstr(stdscr, h - 2, 2, HELP_1, curses.A_DIM)
+    _safe_addstr(stdscr, h - 1, 2, HELP_2, curses.A_DIM)
     stdscr.refresh()
 
 
@@ -130,12 +134,40 @@ def _set_default(st: State) -> None:
 
 
 def _toggle_mute(st: State) -> None:
-    sink = st.current_sink()
-    if not sink:
-        return
+    """Silencia el elemento del panel enfocado (app o salida)."""
     try:
-        backend.toggle_mute(sink.name)
-        st.message = f"✓ mute alternado: {sink.short()}"
+        if st.focus == 0:
+            stream = st.current_stream()
+            if not stream:
+                return
+            backend.toggle_stream_mute(stream.index)
+            st.message = f"✓ mute: {stream.label()}"
+        else:
+            sink = st.current_sink()
+            if not sink:
+                return
+            backend.toggle_mute(sink.name)
+            st.message = f"✓ mute: {sink.short()}"
+    except BackendError as exc:
+        st.message = f"✗ {exc}"
+    st.refresh()
+
+
+def _adjust_volume(st: State, delta: int) -> None:
+    """Sube/baja el volumen del elemento del panel enfocado (app o salida)."""
+    try:
+        if st.focus == 0:
+            stream = st.current_stream()
+            if not stream:
+                return
+            backend.adjust_stream_volume(stream.index, delta)
+            st.message = f"{'🔊' if delta > 0 else '🔉'} {stream.label()} {delta:+d}%"
+        else:
+            sink = st.current_sink()
+            if not sink:
+                return
+            backend.adjust_volume(sink.name, delta)
+            st.message = f"{'🔊' if delta > 0 else '🔉'} {sink.short()} {delta:+d}%"
     except BackendError as exc:
         st.message = f"✗ {exc}"
     st.refresh()
@@ -179,6 +211,10 @@ def _loop(stdscr) -> int:
             _set_default(st)
         elif ch in (ord("m"),):
             _toggle_mute(st)
+        elif ch in (ord("+"), ord("=")):
+            _adjust_volume(st, VOL_STEP)
+        elif ch in (ord("-"), ord("_")):
+            _adjust_volume(st, -VOL_STEP)
 
 
 def run() -> int:

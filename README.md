@@ -73,10 +73,16 @@ ao            # opens the interface
 | `↑`/`↓` or `j`/`k` | move selection |
 | `Tab` or `←`/`→` | switch panel (apps ↔ outputs) |
 | `Enter` | move the selected app to the selected output |
+| `+` / `-` | raise / lower volume of the focused item (per-app or per-output) |
+| `m` | mute/unmute the focused item (app or output) |
 | `d` | set the output as default |
-| `m` | mute/unmute the output |
 | `r` | refresh |
 | `q` | quit |
+
+Volume and mute act on whichever panel is focused: on the **apps** panel they change
+that application's volume (per-stream); on the **outputs** panel they change the device's
+master volume (per-sink). The two are independent — effective loudness is roughly
+`app volume × output volume`.
 
 ### CLI
 ```bash

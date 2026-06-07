@@ -65,6 +65,7 @@ class Stream:
     binary: str
     corked: bool = False
     volume_percent: str = "?"
+    muted: bool = False
 
     def label(self) -> str:
         name = self.app or self.binary or f"stream {self.index}"
@@ -151,6 +152,7 @@ def list_streams() -> list[Stream]:
                 binary=props.get("application.process.binary", ""),
                 corked=bool(si.get("corked", False)),
                 volume_percent=vol,
+                muted=bool(si.get("mute", False)),
             )
         )
     return streams
@@ -205,7 +207,25 @@ def set_port(sink_name: str, port: str) -> None:
 
 
 def set_volume(sink_name: str, percent: int) -> None:
+    """Volumen absoluto de un sink (output), p.ej. 50."""
     _run(["set-sink-volume", sink_name, f"{percent}%"], capture=False)
+
+
+def adjust_volume(sink_name: str, delta: int) -> None:
+    """Ajuste relativo del volumen de un sink, p.ej. +5 / -5."""
+    spec = f"{'+' if delta >= 0 else ''}{delta}%"
+    _run(["set-sink-volume", sink_name, spec], capture=False)
+
+
+def set_stream_volume(stream_index: int, percent: int) -> None:
+    """Volumen absoluto de un stream (sink-input, por aplicación)."""
+    _run(["set-sink-input-volume", str(stream_index), f"{percent}%"], capture=False)
+
+
+def adjust_stream_volume(stream_index: int, delta: int) -> None:
+    """Ajuste relativo del volumen de un stream (por aplicación)."""
+    spec = f"{'+' if delta >= 0 else ''}{delta}%"
+    _run(["set-sink-input-volume", str(stream_index), spec], capture=False)
 
 
 def set_card_profile(card_name: str, profile: str) -> None:
@@ -213,7 +233,13 @@ def set_card_profile(card_name: str, profile: str) -> None:
 
 
 def toggle_mute(sink_name: str) -> None:
+    """Silencia/activa un sink (output)."""
     _run(["set-sink-mute", sink_name, "toggle"], capture=False)
+
+
+def toggle_stream_mute(stream_index: int) -> None:
+    """Silencia/activa un stream (por aplicación)."""
+    _run(["set-sink-input-mute", str(stream_index), "toggle"], capture=False)
 
 
 # --------------------------------------------------------------------------- #
